@@ -2,20 +2,15 @@ import { useState } from 'react'
 import SignUp from './SignUp'
 import ConfirmSignUp from './ConfirmSignUp'
 import SignIn from './SignIn'
+import ForgotPassword from './ForgotPassword'
+import ResetCode from './ResetCode'
+import NewPassword from './NewPassword'
 
-// Screens: 'signin' | 'signup' | 'confirm'
+// Screens: 'signin' | 'signup' | 'confirm' | 'forgot' | 'reset-code' | 'new-password'
 export default function AuthFlow({ onAuthenticated }) {
   const [screen, setScreen] = useState('signin')
   const [pendingEmail, setPendingEmail] = useState('')
-
-  const handleSignUpSuccess = (email) => {
-    setPendingEmail(email)
-    setScreen('confirm')
-  }
-
-  const handleChangeEmail = () => {
-    setScreen('signup')
-  }
+  const [pendingResetCode, setPendingResetCode] = useState('')
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
@@ -24,7 +19,10 @@ export default function AuthFlow({ onAuthenticated }) {
 
         {screen === 'signin' && (
           <>
-            <SignIn onSuccess={onAuthenticated} />
+            <SignIn
+              onSuccess={onAuthenticated}
+              onForgotPassword={() => setScreen('forgot')}
+            />
             <p className="mt-5 text-center text-sm text-gray-500">
               No account?{' '}
               <button
@@ -40,7 +38,10 @@ export default function AuthFlow({ onAuthenticated }) {
 
         {screen === 'signup' && (
           <>
-            <SignUp onSuccess={handleSignUpSuccess} initialEmail={pendingEmail} />
+            <SignUp
+              onSuccess={(email) => { setPendingEmail(email); setScreen('confirm') }}
+              initialEmail={pendingEmail}
+            />
             <p className="mt-5 text-center text-sm text-gray-500">
               Already have an account?{' '}
               <button
@@ -58,7 +59,30 @@ export default function AuthFlow({ onAuthenticated }) {
           <ConfirmSignUp
             email={pendingEmail}
             onSuccess={() => setScreen('signin')}
-            onChangeEmail={handleChangeEmail}
+            onChangeEmail={() => setScreen('signup')}
+          />
+        )}
+
+        {screen === 'forgot' && (
+          <ForgotPassword
+            onCodeSent={(email) => { setPendingEmail(email); setScreen('reset-code') }}
+            onBack={() => setScreen('signin')}
+          />
+        )}
+
+        {screen === 'reset-code' && (
+          <ResetCode
+            email={pendingEmail}
+            onVerified={(code) => { setPendingResetCode(code); setScreen('new-password') }}
+            onChangeEmail={() => setScreen('forgot')}
+          />
+        )}
+
+        {screen === 'new-password' && (
+          <NewPassword
+            email={pendingEmail}
+            code={pendingResetCode}
+            onSuccess={() => setScreen('signin')}
           />
         )}
       </div>
