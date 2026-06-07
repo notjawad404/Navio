@@ -6,9 +6,15 @@ const db = DynamoDBDocumentClient.from(new DynamoDBClient({}))
 const REVIEWS_TABLE = process.env.REVIEWS_TABLE
 const TRIPS_TABLE = process.env.TRIPS_TABLE
 
+const CORS = {
+  "Access-Control-Allow-Origin":  "http://localhost:5173",
+  "Access-Control-Allow-Headers": "content-type,authorization",
+  "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+}
+
 const res = (code, body) => ({
   statusCode: code,
-  headers: { "Content-Type": "application/json" },
+  headers: { "Content-Type": "application/json", ...CORS },
   body: JSON.stringify(body),
 })
 
