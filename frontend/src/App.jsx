@@ -3,7 +3,7 @@ import { getCurrentUser, signOut } from 'aws-amplify/auth'
 import AuthFlow from './components/auth/AuthFlow'
 
 export default function App() {
-  const [user, setUser] = useState(null)
+  const [user, setUser]         = useState(null)
   const [checking, setChecking] = useState(true)
 
   useEffect(() => {
@@ -39,7 +39,7 @@ export default function App() {
         <button
           type="button"
           onClick={handleSignOut}
-          className="rounded-lg border border-gray-300 px-5 py-2 text-sm text-gray-600 hover:bg-gray-100 transition-colors"
+          className="w-full rounded-lg border border-gray-300 px-5 py-2 text-sm text-gray-600 hover:bg-gray-100 transition-colors"
         >
           Sign Out
         </button>

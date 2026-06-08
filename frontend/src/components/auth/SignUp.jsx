@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { signUp } from 'aws-amplify/auth'
+import { uploadProfileImage } from '../../lib/upload'
 
 const passwordRules = [
   { label: 'At least 8 characters', test: (p) => p.length >= 8 },
@@ -22,14 +23,33 @@ function EyeIcon({ visible }) {
   )
 }
 
+function UploadIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+    </svg>
+  )
+}
+
 export default function SignUp({ onSuccess, initialEmail = '' }) {
-  const [form, setForm] = useState({ name: '', email: initialEmail, password: '', confirmPassword: '', picture: '' })
+  const [form, setForm] = useState({ name: '', email: initialEmail, password: '', confirmPassword: '' })
+  const [imageFile, setImageFile] = useState(null)
+  const [imagePreview, setImagePreview] = useState(null)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [loadingStep, setLoadingStep] = useState('')
+  const fileInputRef = useRef(null)
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value })
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
+  }
 
   const allRulesPassed = passwordRules.every(r => r.test(form.password))
 
@@ -37,6 +57,10 @@ export default function SignUp({ onSuccess, initialEmail = '' }) {
     e.preventDefault()
     setError('')
 
+    if (!imageFile) {
+      setError('Please upload a profile photo.')
+      return
+    }
     if (!allRulesPassed) {
       setError('Password does not meet the requirements below.')
       return
@@ -48,6 +72,10 @@ export default function SignUp({ onSuccess, initialEmail = '' }) {
 
     setLoading(true)
     try {
+      setLoadingStep('Uploading photo…')
+      const pictureUrl = await uploadProfileImage(imageFile)
+
+      setLoadingStep('Creating account…')
       await signUp({
         username: form.email,
         password: form.password,
@@ -55,7 +83,7 @@ export default function SignUp({ onSuccess, initialEmail = '' }) {
           userAttributes: {
             email: form.email,
             name: form.name,
-            picture: form.picture,
+            picture: pictureUrl,
           },
         },
       })
@@ -64,12 +92,45 @@ export default function SignUp({ onSuccess, initialEmail = '' }) {
       setError(err.message)
     } finally {
       setLoading(false)
+      setLoadingStep('')
     }
   }
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <h2 className="text-2xl font-semibold text-gray-900">Create account</h2>
+
+      {/* Profile photo picker */}
+      <div className="flex flex-col items-center gap-2">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current.click()}
+          className="group relative w-24 h-24 rounded-full border-2 border-dashed border-gray-300 hover:border-indigo-400 overflow-hidden transition-colors bg-gray-50 hover:bg-indigo-50 flex items-center justify-center"
+        >
+          {imagePreview ? (
+            <>
+              <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <UploadIcon />
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center gap-1">
+              <UploadIcon />
+            </div>
+          )}
+        </button>
+        <p className="text-xs text-gray-500">
+          {imageFile ? imageFile.name : 'Click to upload profile photo'}
+        </p>
+      </div>
 
       {/* Full name */}
       <input
@@ -114,7 +175,6 @@ export default function SignUp({ onSuccess, initialEmail = '' }) {
           </button>
         </div>
 
-        {/* Password policy checklist */}
         {form.password.length > 0 && (
           <ul className="grid grid-cols-2 gap-x-4 gap-y-1 px-1">
             {passwordRules.map(rule => (
@@ -150,17 +210,6 @@ export default function SignUp({ onSuccess, initialEmail = '' }) {
         <p className="text-xs text-red-500 -mt-2">Passwords do not match</p>
       )}
 
-      {/* Profile picture URL */}
-      <input
-        name="picture"
-        type="url"
-        placeholder="Profile picture URL (e.g. https://...)"
-        value={form.picture}
-        onChange={handleChange}
-        required
-        className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
-      />
-
       {error && <p className="text-sm text-red-500">{error}</p>}
 
       <button
@@ -168,7 +217,7 @@ export default function SignUp({ onSuccess, initialEmail = '' }) {
         disabled={loading}
         className="w-full rounded-lg bg-indigo-600 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
-        {loading ? 'Creating account…' : 'Sign Up'}
+        {loading ? loadingStep : 'Sign Up'}
       </button>
     </form>
   )
