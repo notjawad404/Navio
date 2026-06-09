@@ -37,14 +37,9 @@ export const handler = async (event) => {
 
       case "POST /trips": {
         const trip = {
+          ...body,
           tripId: randomUUID(),
           userId,
-          title: body.title,
-          destination: body.destination,
-          startDate: body.startDate,
-          endDate: body.endDate,
-          budget: body.budget ?? null,
-          interests: body.interests ?? [],
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         }
