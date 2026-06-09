@@ -71,16 +71,12 @@ Return ONLY a valid JSON object with no markdown, no explanation, no code block.
 }`
 }
 
-// Each model gets 20s before it's aborted
-async function tryModel(model, prompt) {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 20000)
-
+async function tryModel(model, prompt, signal) {
   try {
     const r = await fetch(`${BASE_URL}/${model}:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      signal: controller.signal,
+      signal,
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: { responseMimeType: "application/json" },
@@ -88,28 +84,39 @@ async function tryModel(model, prompt) {
     })
 
     const data = await r.json()
-    clearTimeout(timer)
-
-    if (!r.ok) throw new Error(`${model}: ${r.status} ${data.error?.status}`)
+    if (!r.ok) throw new Error(`${r.status} ${data.error?.status}`)
 
     const parts = data.candidates?.[0]?.content?.parts ?? []
     const text  = parts.find(p => !p.thought)?.text ?? parts[0]?.text
-    if (!text) throw new Error(`${model}: empty response`)
+    if (!text) throw new Error("empty response")
 
-    console.log(`Winner: ${model}`)
-    return text
+    return { model, text }
   } catch (err) {
-    clearTimeout(timer)
-    console.log(`Failed: ${model} — ${err.message}`)
-    throw err   // re-throw so Promise.any keeps trying others
+    const reason = err.name === "AbortError" ? "aborted" : err.message
+    console.log(`[${model}] failed: ${reason}`)
+    throw err
   }
 }
 
 async function callGemini(prompt) {
+  // One AbortController per model + a shared 20s global timeout
+  const controllers = MODELS.map(() => new AbortController())
+  const globalTimer = setTimeout(() => {
+    controllers.forEach(c => c.abort())
+  }, 20000)
+
   try {
-    return await Promise.any(MODELS.map(m => tryModel(m, prompt)))
+    const { model, text } = await Promise.any(
+      MODELS.map((m, i) => tryModel(m, prompt, controllers[i].signal))
+    )
+    // Cancel all remaining in-flight requests immediately
+    controllers.forEach(c => c.abort())
+    clearTimeout(globalTimer)
+    console.log(`Winner: ${model}`)
+    return text
   } catch {
-    return null  // AggregateError — all models failed
+    clearTimeout(globalTimer)
+    return null  // AggregateError — all models failed or timed out
   }
 }
 
