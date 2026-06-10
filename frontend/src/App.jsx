@@ -5,6 +5,7 @@ import Layout from './components/layout/Layout'
 import HomePage from './pages/HomePage'
 import PlanPage from './pages/PlanPage'
 import TripsPage from './pages/TripsPage'
+import TripDetailPage from './pages/TripDetailPage'
 import ProfilePage from './pages/ProfilePage'
 
 function ProtectedRoutes() {
@@ -27,7 +28,8 @@ function ProtectedRoutes() {
       <Route element={<Layout />}>
         <Route path="/"        element={<HomePage />} />
         <Route path="/plan"    element={<PlanPage />} />
-        <Route path="/trips"   element={<TripsPage />} />
+        <Route path="/trips"          element={<TripsPage />} />
+        <Route path="/trips/:tripId"  element={<TripDetailPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="*"        element={<Navigate to="/" replace />} />
       </Route>
