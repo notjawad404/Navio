@@ -3,6 +3,17 @@ import { resetPassword } from 'aws-amplify/auth'
 
 const RESEND_COOLDOWN = 60
 
+function ErrorBanner({ message }) {
+  return (
+    <div className="flex items-start gap-2.5 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
+      <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9.303 3.376c.866 1.5-.217 3.374-1.948 3.374H4.645c-1.73 0-2.813-1.874-1.948-3.374L10.051 3.378c.866-1.5 3.032-1.5 3.898 0L21.303 16.126zM12 15.75h.007v.008H12v-.008z" />
+      </svg>
+      {message}
+    </div>
+  )
+}
+
 export default function ResetCode({ email, onVerified, onChangeEmail }) {
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
@@ -46,54 +57,55 @@ export default function ResetCode({ email, onVerified, onChangeEmail }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       <div>
-        <h2 className="text-2xl font-semibold text-gray-900">Check your email</h2>
-        <p className="mt-1 text-sm text-gray-500">
+        <h2 className="text-2xl font-bold text-gray-900">Check your email</h2>
+        <p className="mt-1.5 text-sm text-gray-500 leading-relaxed">
           A reset code was sent to{' '}
-          <span className="font-medium text-gray-700">{email}</span>
-          {' '}
-          <button
-            type="button"
-            onClick={onChangeEmail}
-            className="text-gray-400 hover:text-indigo-600 hover:underline transition-colors"
-          >
-            (not you?)
+          <span className="font-semibold text-gray-700">{email}</span>.{' '}
+          <button type="button" onClick={onChangeEmail} className="text-indigo-600 hover:underline transition-colors">
+            Not you?
           </button>
         </p>
       </div>
 
-      <input
-        type="text"
-        inputMode="numeric"
-        placeholder="Enter code"
-        value={code}
-        onChange={(e) => setCode(e.target.value)}
-        maxLength={6}
-        required
-        className="w-full rounded-lg border border-gray-300 px-4 py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 tracking-widest text-center text-lg"
-      />
+      {/* OTP input */}
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+          Reset code
+        </label>
+        <input
+          type="text"
+          inputMode="numeric"
+          placeholder="000000"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          maxLength={6}
+          required
+          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-4 text-center text-2xl font-mono tracking-[0.6em] text-gray-900 outline-none transition-all placeholder:text-gray-300 focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+        />
+      </div>
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <ErrorBanner message={error} />}
 
       <button
         type="submit"
-        className="w-full rounded-lg bg-indigo-600 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
+        className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-indigo-700 hover:shadow-md active:scale-[0.98]"
       >
         Continue
       </button>
 
-      <div className="flex justify-end text-sm text-gray-500">
+      <div className="text-center text-sm">
         {countdown > 0 ? (
           <span className="tabular-nums text-gray-400">
-            Resend in 0:{String(countdown).padStart(2, '0')}
+            Resend available in 0:{String(countdown).padStart(2, '0')}
           </span>
         ) : (
           <button
             type="button"
             onClick={handleResend}
             disabled={resendSending}
-            className="hover:text-indigo-600 hover:underline transition-colors disabled:opacity-50"
+            className="text-indigo-600 hover:underline transition-colors disabled:opacity-50"
           >
             {resendSending ? 'Sending…' : 'Resend code'}
           </button>
