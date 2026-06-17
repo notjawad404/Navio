@@ -49,26 +49,34 @@ Return ONLY a valid JSON object with no markdown, no explanation, no code block.
         "place": "Place or area name",
         "activity": "What to do there",
         "description": "2-3 sentences about why this is great and what to expect",
-        "duration": "e.g. 2 hours"
+        "duration": "e.g. 2 hours",
+        "lat": 0.0,
+        "lng": 0.0
       },
       "afternoon": {
         "place": "Place or area name",
         "activity": "What to do there",
         "description": "2-3 sentences about why this is great and what to expect",
-        "duration": "e.g. 3 hours"
+        "duration": "e.g. 3 hours",
+        "lat": 0.0,
+        "lng": 0.0
       },
       "evening": {
         "place": "Place or area name",
         "activity": "What to do there",
         "description": "2-3 sentences about why this is great and what to expect",
-        "duration": "e.g. 2 hours"
+        "duration": "e.g. 2 hours",
+        "lat": 0.0,
+        "lng": 0.0
       },
       "tips": "One practical tip specific to this day"
     }
   ],
   "generalTips": ["tip 1", "tip 2", "tip 3", "tip 4"],
   "estimatedCost": "Brief per-person cost estimate for ${trip.budget} budget traveller"
-}`
+}
+
+IMPORTANT: Replace each 0.0 placeholder with accurate real-world latitude and longitude coordinates for that specific place. Use your knowledge of the destination to provide precise coordinates for landmarks, neighbourhoods, restaurants, and attractions.`
 }
 
 async function tryModel(model, prompt, signal) {
