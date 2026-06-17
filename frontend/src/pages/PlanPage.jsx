@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { tripsService } from '../lib/trips'
+import TripMap from '../components/TripMap'
 
 const INTERESTS = [
   { label: 'Food & Dining', emoji: '🍜' },
@@ -140,6 +141,9 @@ function ResultView({ plan, tripMeta, onReset, tripId }) {
           <p className="text-gray-700 leading-relaxed italic">"{plan.summary}"</p>
         </div>
       )}
+
+      {/* Map */}
+      <TripMap days={plan.days} />
 
       {/* Day cards */}
       {plan.days?.map(day => <DayCard key={day.day} day={day} />)}

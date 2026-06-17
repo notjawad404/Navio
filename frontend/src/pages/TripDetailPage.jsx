@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { tripsService } from '../lib/trips'
+import TripMap from '../components/TripMap'
 
 const SLOT_STYLE = {
   morning:   { label: 'Morning',   icon: '🌅', bg: 'bg-amber-50',   border: 'border-amber-200',  text: 'text-amber-700' },
@@ -139,6 +140,8 @@ export default function TripDetailPage() {
               <p className="text-gray-700 leading-relaxed italic">"{plan.summary}"</p>
             </div>
           )}
+
+          <TripMap days={plan.days} />
 
           {plan.days?.map(day => <DayCard key={day.day} day={day} />)}
 
