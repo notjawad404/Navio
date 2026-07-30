@@ -33,7 +33,7 @@ const navioFeatures = [
   {
     icon: '🤖',
     title: 'AI-Generated Itineraries',
-    desc: 'Describe your dream trip and our AI builds a complete day-by-day plan — morning, afternoon, and evening — in seconds.',
+    desc: 'Describe your dream trip and our AI builds a complete hour-by-hour plan — every stop, timed and mapped — in seconds.',
   },
   {
     icon: '🌍',

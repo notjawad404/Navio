@@ -2,15 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-
-const SLOT_COLORS = {
-  morning:   '#f59e0b',
-  afternoon: '#0ea5e9',
-  evening:   '#7c3aed',
-}
+import { getSlotMeta, dayWaypoints, slotsInPlan } from '../lib/itinerary'
 
 function makeIcon(number, slot) {
-  const bg = SLOT_COLORS[slot] || '#6366f1'
+  const bg = getSlotMeta(slot).hex
   return L.divIcon({
     className: '',
     html: `<div style="background:${bg};color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.35);">${number}</div>`,
@@ -39,19 +34,12 @@ function FitBounds({ waypoints }) {
 export default function TripMap({ days }) {
   const [selectedDay, setSelectedDay] = useState(0)
 
-  const allWaypoints = useMemo(() => {
-    if (!days) return []
-    const pts = []
-    days.forEach(day => {
-      ;['morning', 'afternoon', 'evening'].forEach(slot => {
-        const d = day[slot]
-        if (d?.lat != null && d?.lng != null) {
-          pts.push({ day: day.day, slot, place: d.place, activity: d.activity, lat: d.lat, lng: d.lng })
-        }
-      })
-    })
-    return pts
-  }, [days])
+  const allWaypoints = useMemo(
+    () => (days || []).flatMap(dayWaypoints),
+    [days],
+  )
+
+  const legend = useMemo(() => slotsInPlan(days), [days])
 
   const filteredWaypoints = useMemo(
     () => selectedDay === 0 ? allWaypoints : allWaypoints.filter(w => w.day === selectedDay),
@@ -73,10 +61,19 @@ export default function TripMap({ days }) {
         <h3 className="font-semibold text-gray-800 flex items-center gap-2">
           <span>🗺️</span> Map View
         </h3>
-        <div className="flex items-center gap-3 text-xs text-gray-500">
-          <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-400"></span>Morning</span>
-          <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-sky-400"></span>Afternoon</span>
-          <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-violet-500"></span>Evening</span>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-gray-500">
+          {legend.map(slot => {
+            const meta = getSlotMeta(slot)
+            return (
+              <span key={slot} className="flex items-center gap-1.5">
+                <span
+                  className="inline-block w-2.5 h-2.5 rounded-full"
+                  style={{ backgroundColor: meta.hex }}
+                />
+                {meta.label}
+              </span>
+            )
+          })}
         </div>
       </div>
 
@@ -93,8 +90,7 @@ export default function TripMap({ days }) {
             All Days
           </button>
           {days.map(d => {
-            const hasCoords = ['morning', 'afternoon', 'evening'].some(s => d[s]?.lat != null)
-            if (!hasCoords) return null
+            if (dayWaypoints(d).length === 0) return null
             return (
               <button
                 key={d.day}
@@ -128,7 +124,9 @@ export default function TripMap({ days }) {
             <Popup>
               <div style={{ minWidth: 140 }}>
                 <p style={{ fontWeight: 600, fontSize: 13, margin: 0 }}>{w.place}</p>
-                <p style={{ color: '#6b7280', fontSize: 11, margin: '2px 0 0' }}>Day {w.day} · {w.slot}</p>
+                <p style={{ color: '#6b7280', fontSize: 11, margin: '2px 0 0' }}>
+                  Day {w.day} · {getSlotMeta(w.slot).label}{w.startTime ? ` · ${w.startTime}` : ''}
+                </p>
                 <p style={{ color: '#374151', fontSize: 11, margin: '4px 0 0' }}>{w.activity}</p>
               </div>
             </Popup>

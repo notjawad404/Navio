@@ -2,58 +2,10 @@ import { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { tripsService } from '../lib/trips'
 import TripMap from '../components/TripMap'
-
-const SLOT_STYLE = {
-  morning:   { label: 'Morning',   icon: '🌅', bg: 'bg-amber-50',   border: 'border-amber-200',  text: 'text-amber-700' },
-  afternoon: { label: 'Afternoon', icon: '☀️',  bg: 'bg-sky-50',    border: 'border-sky-200',    text: 'text-sky-700' },
-  evening:   { label: 'Evening',   icon: '🌙',  bg: 'bg-violet-50', border: 'border-violet-200', text: 'text-violet-700' },
-}
+import DayCard from '../components/DayCard'
 
 const BUDGET_EMOJI = { Budget: '🎒', Moderate: '✈️', Luxury: '💎' }
 const STYLE_EMOJI  = { Cultural: '🎭', Adventure: '🧗', Relaxation: '🧘', Romantic: '❤️', Family: '👨‍👩‍👧' }
-
-function SlotCard({ slot, data }) {
-  const s = SLOT_STYLE[slot]
-  return (
-    <div className={`rounded-xl border ${s.border} ${s.bg} p-4`}>
-      <div className="flex items-center gap-2 mb-2">
-        <span>{s.icon}</span>
-        <span className={`text-xs font-bold uppercase tracking-wider ${s.text}`}>{s.label}</span>
-        <span className="ml-auto text-xs text-gray-400">{data.duration}</span>
-      </div>
-      <p className="font-semibold text-gray-900 text-sm">{data.place}</p>
-      <p className="text-xs text-gray-500 mt-0.5 mb-2">{data.activity}</p>
-      <p className="text-xs text-gray-600 leading-relaxed">{data.description}</p>
-    </div>
-  )
-}
-
-function DayCard({ day }) {
-  return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="flex items-center gap-3 px-5 py-4 bg-linear-to-r from-indigo-50 to-white border-b border-gray-100">
-        <div className="w-9 h-9 rounded-full bg-indigo-600 text-white flex items-center justify-center text-sm font-bold shrink-0">
-          {day.day}
-        </div>
-        <div>
-          <p className="text-xs text-indigo-500 font-medium uppercase tracking-wide">Day {day.day}</p>
-          <p className="font-semibold text-gray-800">{day.theme}</p>
-        </div>
-      </div>
-      <div className="p-4 flex flex-col gap-3">
-        {['morning', 'afternoon', 'evening'].map(slot => (
-          day[slot] && <SlotCard key={slot} slot={slot} data={day[slot]} />
-        ))}
-        {day.tips && (
-          <div className="flex items-start gap-2 px-3 py-2.5 bg-gray-50 rounded-lg border border-gray-200 mt-1">
-            <span className="text-base">💡</span>
-            <p className="text-xs text-gray-600 leading-relaxed">{day.tips}</p>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
 
 export default function TripDetailPage() {
   const { tripId }          = useParams()

@@ -31,7 +31,7 @@ const features = [
   {
     icon: '🤖',
     title: 'AI-Powered Itineraries',
-    desc: 'Tell us your destination and preferences. Our AI crafts a personalized day-by-day plan in seconds — morning, afternoon, and evening included.',
+    desc: 'Tell us your destination and preferences. Our AI crafts a personalized hour-by-hour plan in seconds — realistic timings and travel between every stop.',
   },
   {
     icon: '🌍',
