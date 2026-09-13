@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { tripsService } from '../lib/trips'
+import { tripsService, waitForAiPlan } from '../lib/trips'
 import TripMap from '../components/TripMap'
 import DayCard from '../components/DayCard'
 
@@ -171,6 +171,9 @@ export default function PlanPage() {
       : [...form.interests, label]
     )
 
+  const polling = useRef(null)
+  useEffect(() => () => polling.current?.abort(), [])
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
@@ -182,8 +185,11 @@ export default function PlanPage() {
         status: 'planning',
       })
       setTripId(trip.tripId)
-      const result = await tripsService.generateAiPlan(trip.tripId)
-      setPlan(result.plan)
+      await tripsService.generateAiPlan(trip.tripId)
+      polling.current = new AbortController()
+      const ready = await waitForAiPlan(trip.tripId, polling.current.signal)
+      if (!ready) return
+      setPlan(ready.aiPlan)
       setStage('result')
     } catch (err) {
       setError(err.message)

@@ -1,19 +1,27 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb"
 import { DynamoDBDocumentClient, GetCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb"
+import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda"
 
 const db = DynamoDBDocumentClient.from(new DynamoDBClient({}))
+const lambda = new LambdaClient({})
 const TRIPS_TABLE    = process.env.TRIPS_TABLE
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY
 const BASE_URL       = "https://generativelanguage.googleapis.com/v1beta/models"
 
 // Tried in order — the first is the primary, the rest are fallbacks
 const MODELS = [
+  "gemini-3-flash-preview",
   "gemini-flash-lite-latest",
   "gemini-2.5-flash-lite",
-  "gemini-3.1-flash-lite",
-  // "gemini-3-flash-preview",  // best plans, but too slow for the 30s API Gateway limit
+  // "gemini-3.1-flash-lite",   // thinnest plans of the lite models
   // "gemini-flash-latest",     // kept returning 503 high demand
 ]
+
+// The worker's budget must stay under the Lambda timeout (540s)
+const GENERATION_BUDGET_MS = 8 * 60 * 1000
+const MODEL_TIMEOUT_MS     = 3 * 60 * 1000
+// Past this, a "generating" status is assumed to belong to a worker that died
+const STALE_AFTER_MS       = 10 * 60 * 1000
 
 // Canonical slot ids — the frontend maps these to a label, icon and colour
 const SLOT_KEYS = [
@@ -256,9 +264,8 @@ async function tryModel(model, prompt, signal) {
         generationConfig: {
           responseMimeType: "application/json",
           responseSchema:   PLAN_SCHEMA,
-          // A 5-7 slot day with up to 3 places each is far larger than the old
-          // 3-slot plan — the default cap truncates anything past ~4 days.
-          maxOutputTokens:  32768,
+          // Thinking tokens count toward this cap, and 14-day plans need the room
+          maxOutputTokens:  65536,
         },
       }),
     })
@@ -283,15 +290,14 @@ async function tryModel(model, prompt, signal) {
 }
 
 async function callGemini(prompt) {
-  // Models are tried in priority order, sharing one deadline under the API Gateway integration ceiling
-  const deadline = Date.now() + 25000
+  const deadline = Date.now() + GENERATION_BUDGET_MS
 
   for (const model of MODELS) {
     const remaining = deadline - Date.now()
     if (remaining <= 0) break
 
     try {
-      const { text } = await tryModel(model, prompt, AbortSignal.timeout(remaining))
+      const { text } = await tryModel(model, prompt, AbortSignal.timeout(Math.min(remaining, MODEL_TIMEOUT_MS)))
       console.log(`Winner: ${model}`)
       return text
     } catch {
@@ -302,48 +308,129 @@ async function callGemini(prompt) {
   return null
 }
 
-export const handler = async (event) => {
+function parsePlan(raw) {
+  const start = raw.indexOf('{')
+  const end   = raw.lastIndexOf('}')
+  if (start === -1 || end === -1) return null
+
+  try {
+    return JSON.parse(raw.slice(start, end + 1))
+  } catch {
+    return null
+  }
+}
+
+// attribute_exists stops a late worker from recreating a trip deleted mid-generation
+const savePlan = (tripId, plan) => db.send(new UpdateCommand({
+  TableName: TRIPS_TABLE,
+  Key: { tripId },
+  ConditionExpression: "attribute_exists(tripId)",
+  UpdateExpression: "SET aiPlan = :plan, aiPlanStatus = :ready, updatedAt = :now REMOVE aiPlanError",
+  ExpressionAttributeValues: {
+    ":plan":  plan,
+    ":ready": "ready",
+    ":now":   new Date().toISOString(),
+  },
+}))
+
+const markFailed = (tripId, message) => db.send(new UpdateCommand({
+  TableName: TRIPS_TABLE,
+  Key: { tripId },
+  ConditionExpression: "attribute_exists(tripId)",
+  UpdateExpression: "SET aiPlanStatus = :failed, aiPlanError = :error",
+  ExpressionAttributeValues: {
+    ":failed": "failed",
+    ":error":  message,
+  },
+}))
+
+async function startGeneration(event) {
   const userId = event.requestContext.authorizer.jwt.claims.sub
   const { tripId } = event.pathParameters || {}
-
-  console.log(`Generating plan for trip: ${tripId}`)
 
   try {
     const result = await db.send(new GetCommand({ TableName: TRIPS_TABLE, Key: { tripId } }))
     if (!result.Item) return res(404, { message: "Trip not found" })
     if (result.Item.userId !== userId) return res(403, { message: "Forbidden" })
 
-    console.log(`Trip found: ${result.Item.destination}, ${result.Item.days} days`)
-
-    const raw = await callGemini(buildPrompt(result.Item))
-    if (!raw) return res(502, { message: "All AI models are currently busy. Please try again in a moment." })
-
-    const start = raw.indexOf('{')
-    const end   = raw.lastIndexOf('}')
-    if (start === -1 || end === -1) return res(502, { message: "AI returned malformed response." })
-
-    let plan
+    const now = Date.now()
     try {
-      plan = JSON.parse(raw.slice(start, end + 1))
-    } catch {
-      console.error(`Unparseable plan (${raw.length} chars) for trip: ${tripId}`)
-      return res(502, { message: "AI returned an incomplete itinerary. Please try again." })
+      // Conditional so a double-click can't start two workers for the same trip
+      await db.send(new UpdateCommand({
+        TableName: TRIPS_TABLE,
+        Key: { tripId },
+        ConditionExpression: "attribute_not_exists(aiPlanStatus) OR aiPlanStatus <> :generating OR aiPlanStartedAt < :staleBefore",
+        UpdateExpression: "SET aiPlanStatus = :generating, aiPlanStartedAt = :now REMOVE aiPlanError",
+        ExpressionAttributeValues: {
+          ":generating":  "generating",
+          ":now":         new Date(now).toISOString(),
+          ":staleBefore": new Date(now - STALE_AFTER_MS).toISOString(),
+        },
+      }))
+    } catch (err) {
+      if (err.name !== "ConditionalCheckFailedException") throw err
+      console.log(`Plan already generating for trip: ${tripId}`)
+      return res(202, { tripId, status: "generating" })
     }
 
-    await db.send(new UpdateCommand({
-      TableName: TRIPS_TABLE,
-      Key: { tripId },
-      UpdateExpression: "SET aiPlan = :plan, updatedAt = :now",
-      ExpressionAttributeValues: {
-        ":plan": plan,
-        ":now": new Date().toISOString(),
-      },
-    }))
+    try {
+      await lambda.send(new InvokeCommand({
+        FunctionName:   process.env.AWS_LAMBDA_FUNCTION_NAME,
+        InvocationType: "Event",
+        Payload:        JSON.stringify({ job: "generate", tripId }),
+      }))
+    } catch (err) {
+      await markFailed(tripId, "Could not start generating your itinerary. Please try again.")
+      throw err
+    }
 
-    console.log(`Plan saved for trip: ${tripId}`)
-    return res(200, { tripId, plan })
+    console.log(`Plan generation started for trip: ${tripId}`)
+    return res(202, { tripId, status: "generating" })
   } catch (err) {
     console.error("Handler error:", err)
     return res(500, { message: err.message || "Internal server error" })
   }
+}
+
+async function generatePlan(tripId) {
+  console.log(`Generating plan for trip: ${tripId}`)
+
+  try {
+    const { Item: trip } = await db.send(new GetCommand({ TableName: TRIPS_TABLE, Key: { tripId } }))
+    if (!trip) {
+      console.log(`Trip deleted before generation: ${tripId}`)
+      return
+    }
+
+    console.log(`Trip found: ${trip.destination}, ${trip.days} days`)
+
+    const raw = await callGemini(buildPrompt(trip))
+    if (!raw) {
+      await markFailed(tripId, "We couldn't generate your itinerary right now. Please try again in a moment.")
+      return
+    }
+
+    const plan = parsePlan(raw)
+    if (!plan) {
+      console.error(`Unparseable plan (${raw.length} chars) for trip: ${tripId}`)
+      await markFailed(tripId, "AI returned an incomplete itinerary. Please try again.")
+      return
+    }
+
+    await savePlan(tripId, plan)
+    console.log(`Plan saved for trip: ${tripId}`)
+  } catch (err) {
+    if (err.name === "ConditionalCheckFailedException") {
+      console.log(`Trip deleted during generation: ${tripId}`)
+      return
+    }
+    console.error("Worker error:", err)
+    await markFailed(tripId, "Something went wrong while generating your itinerary. Please try again.").catch(() => {})
+  }
+}
+
+export const handler = async (event) => {
+  // Background self-invocations carry a job payload; API Gateway events never do
+  if (event.job === "generate") return generatePlan(event.tripId)
+  return startGeneration(event)
 }
