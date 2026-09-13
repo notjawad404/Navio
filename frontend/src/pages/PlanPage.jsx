@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { tripsService, waitForAiPlan } from '../lib/trips'
+import { fetchDestinationInfo } from '../lib/destinationInfo'
 import TripMap from '../components/TripMap'
 import DayCard from '../components/DayCard'
+import DestinationInfo from '../components/DestinationInfo'
 
 const INTERESTS = [
   { label: 'Food & Dining', emoji: '🍜' },
@@ -39,29 +41,55 @@ const LOADING_MESSAGES = [
   ()   => 'Almost ready…',
 ]
 
-function LoadingView({ destination }) {
+function LoadingDots() {
+  return (
+    <div className="flex gap-1.5">
+      {[0, 1, 2].map(i => (
+        <div
+          key={i}
+          className="w-2 h-2 rounded-full bg-indigo-400 animate-bounce"
+          style={{ animationDelay: `${i * 0.15}s` }}
+        />
+      ))}
+    </div>
+  )
+}
+
+function LoadingView({ destination, destinationInfo }) {
   const [idx, setIdx] = useState(0)
   useEffect(() => {
     const t = setInterval(() => setIdx(i => (i + 1) % LOADING_MESSAGES.length), 2000)
     return () => clearInterval(t)
   }, [])
 
-  return (
+  const message = LOADING_MESSAGES[idx](destination)
+
+  // Nothing found about the destination, so keep the plain full-screen loader
+  if (destinationInfo === null) return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 text-center">
       <div className="text-6xl animate-bounce">🌍</div>
       <div>
         <h2 className="text-xl font-semibold text-gray-800 mb-1">Planning your trip</h2>
-        <p className="text-gray-400 text-sm h-5">{LOADING_MESSAGES[idx](destination)}</p>
+        <p className="text-gray-400 text-sm h-5">{message}</p>
       </div>
-      <div className="flex gap-1.5">
-        {[0, 1, 2].map(i => (
-          <div
-            key={i}
-            className="w-2 h-2 rounded-full bg-indigo-400 animate-bounce"
-            style={{ animationDelay: `${i * 0.15}s` }}
-          />
-        ))}
+      <LoadingDots />
+    </div>
+  )
+
+  return (
+    <div className="max-w-2xl mx-auto flex flex-col gap-4">
+      <div className="sticky top-20 z-10 bg-white rounded-2xl border border-gray-200 shadow-sm p-5 flex items-center gap-4">
+        <div className="text-4xl animate-bounce">🌍</div>
+        <div className="flex-1 min-w-0">
+          <h2 className="font-semibold text-gray-800">Planning your trip</h2>
+          <p className="text-gray-400 text-sm h-5 truncate">{message}</p>
+        </div>
+        <LoadingDots />
       </div>
+      <p className="text-sm text-gray-500 text-center">
+        A detailed itinerary can take a minute — here's a little about where you're headed.
+      </p>
+      <DestinationInfo info={destinationInfo} />
     </div>
   )
 }
@@ -171,13 +199,24 @@ export default function PlanPage() {
       : [...form.interests, label]
     )
 
-  const polling = useRef(null)
-  useEffect(() => () => polling.current?.abort(), [])
+  const [destinationInfo, setDestinationInfo] = useState(undefined)
+  const pending = useRef(null)
+  useEffect(() => () => pending.current?.abort(), [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     setStage('loading')
+
+    pending.current?.abort()
+    const request = new AbortController()
+    pending.current = request
+
+    setDestinationInfo(undefined)
+    fetchDestinationInfo(form.destination, request.signal).then(info => {
+      if (!request.signal.aborted) setDestinationInfo(info)
+    })
+
     try {
       const trip = await tripsService.create({
         ...form,
@@ -186,8 +225,7 @@ export default function PlanPage() {
       })
       setTripId(trip.tripId)
       await tripsService.generateAiPlan(trip.tripId)
-      polling.current = new AbortController()
-      const ready = await waitForAiPlan(trip.tripId, polling.current.signal)
+      const ready = await waitForAiPlan(trip.tripId, request.signal)
       if (!ready) return
       setPlan(ready.aiPlan)
       setStage('result')
@@ -205,7 +243,7 @@ export default function PlanPage() {
     setForm({ destination: '', name: '', days: 3, budget: 'Moderate', travelStyle: 'Cultural', interests: [], notes: '' })
   }
 
-  if (stage === 'loading') return <LoadingView destination={form.destination} />
+  if (stage === 'loading') return <LoadingView destination={form.destination} destinationInfo={destinationInfo} />
 
   if (stage === 'result') return (
     <ResultView plan={plan} tripMeta={form} onReset={reset} tripId={tripId} />
