@@ -63,7 +63,7 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="page-container">
         <div className="flex h-16 items-center justify-between">
 
           {/* Logo */}
@@ -87,7 +87,7 @@ export default function Header() {
                 className="flex items-center gap-2 rounded-full p-0.5 hover:ring-2 hover:ring-indigo-200 transition-all"
               >
                 <Avatar attrs={userAttrs} />
-                <span className="text-sm text-gray-700 max-w-[120px] truncate">
+                <span className="text-sm text-gray-700 max-w-30 truncate">
                   {userAttrs?.name ?? userAttrs?.email ?? ''}
                 </span>
                 <svg className={`w-4 h-4 text-gray-400 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -142,7 +142,7 @@ export default function Header() {
 
       {/* Mobile menu */}
       {menuOpen && (
-        <div className="md:hidden border-t border-gray-100 bg-white px-4 pb-4 pt-3 flex flex-col gap-1">
+        <div className="md:hidden border-t border-gray-100 bg-white px-(--page-gutter) pb-4 pt-3 flex flex-col gap-1">
           {navLinks.map(link => (
             <NavLink
               key={link.to}

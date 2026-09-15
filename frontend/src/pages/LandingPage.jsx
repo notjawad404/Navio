@@ -84,7 +84,7 @@ export default function LandingPage({ onGetStarted, onSignIn }) {
         style={slideUp(loaded, 0)}
         className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100"
       >
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="page-container">
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-2xl font-bold text-indigo-600 tracking-tight">Navio</span>
@@ -103,11 +103,11 @@ export default function LandingPage({ onGetStarted, onSignIn }) {
       </header>
 
       {/* ── Hero ── */}
-      <section className="relative overflow-hidden bg-white pt-16 pb-28 px-4 sm:px-6 lg:px-8">
+      <section className="relative overflow-hidden bg-white pt-16 pb-28">
         <div className="pointer-events-none absolute -top-40 -right-40 w-175 h-175 rounded-full bg-indigo-100 opacity-30 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-40 -left-40 w-125 h-125 rounded-full bg-violet-100 opacity-25 blur-3xl" />
 
-        <div className="relative mx-auto max-w-7xl">
+        <div className="relative page-container">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
 
             {/* Text — staggered entry */}
@@ -256,8 +256,8 @@ export default function LandingPage({ onGetStarted, onSignIn }) {
       </section>
 
       {/* ── Features ── */}
-      <section className="bg-gray-50 px-4 py-20 sm:px-6 lg:px-8">
-        <div ref={featuresRef} className="mx-auto max-w-7xl">
+      <section className="bg-gray-50 py-20">
+        <div ref={featuresRef} className="page-container">
           <div style={slideUp(featuresVisible)} className="mb-14 text-center">
             <h2 className="mb-4 text-3xl font-bold text-gray-900 sm:text-4xl">
               Everything you need to travel smarter
@@ -283,15 +283,15 @@ export default function LandingPage({ onGetStarted, onSignIn }) {
       </section>
 
       {/* ── How it works ── */}
-      <section className="bg-white px-4 py-20 sm:px-6 lg:px-8">
-        <div ref={stepsRef} className="mx-auto max-w-5xl">
+      <section className="bg-white py-20">
+        <div ref={stepsRef} className="page-container">
           <div style={slideUp(stepsVisible)} className="mb-14 text-center">
             <h2 className="mb-4 text-3xl font-bold text-gray-900 sm:text-4xl">How Navio works</h2>
             <p className="mx-auto max-w-xl text-lg text-gray-500">
               Planning your perfect trip takes just three simple steps.
             </p>
           </div>
-          <div className="grid gap-10 sm:grid-cols-3 sm:gap-6">
+          <div className="mx-auto grid max-w-5xl gap-10 sm:grid-cols-3 sm:gap-6">
             {steps.map((step, i) => (
               <div key={i} style={slideUp(stepsVisible, i + 1)} className="flex flex-col items-center text-center">
                 <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-2xl border-2 border-indigo-100 bg-indigo-50 shadow-sm">

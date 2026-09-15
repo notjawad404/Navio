@@ -36,7 +36,7 @@ function TripCard({ trip, onDelete }) {
   })
 
   return (
-    <div className={`relative bg-white rounded-2xl border shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden ${confirming ? 'border-red-200' : 'border-gray-200'}`}>
+    <div className={`relative flex flex-col bg-white rounded-2xl border shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden ${confirming ? 'border-red-200' : 'border-gray-200'}`}>
       <div className="h-1.5 bg-linear-to-r from-indigo-500 to-violet-500" />
 
       {confirming && (
@@ -81,7 +81,7 @@ function TripCard({ trip, onDelete }) {
         </div>
       )}
 
-      <div className="p-5 flex flex-col gap-3">
+      <div className="p-5 flex flex-1 flex-col gap-3">
         <div className="flex items-start justify-between gap-2">
           <div>
             <p className="text-xs text-indigo-500 font-medium mb-0.5">{trip.destination}</p>
@@ -128,7 +128,7 @@ function TripCard({ trip, onDelete }) {
           </div>
         )}
 
-        <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+        <div className="mt-auto flex items-center justify-between pt-2 border-t border-gray-100">
           <span className="text-xs text-gray-400">{date}</span>
           <Link
             to={`/trips/${trip.tripId}`}
@@ -189,7 +189,7 @@ export default function TripsPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">My Trips</h1>
@@ -205,7 +205,7 @@ export default function TripsPage() {
         </Link>
       </div>
 
-      <div className="flex flex-col gap-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {trips.map(trip => (
           <TripCard
             key={trip.tripId}

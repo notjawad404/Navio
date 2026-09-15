@@ -155,8 +155,8 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">My Profile</h1>
+    <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+      <h1 className="text-2xl font-bold text-gray-900 lg:col-span-2">My Profile</h1>
 
       {/* ── Account Details ── */}
       <form
@@ -243,7 +243,7 @@ export default function ProfilePage() {
       {verifyMode && (
         <form
           onSubmit={handleVerify}
-          className="bg-amber-50 rounded-2xl border border-amber-200 p-6 space-y-4"
+          className="bg-amber-50 rounded-2xl border border-amber-200 p-6 space-y-4 lg:col-start-1"
         >
           <h2 className="text-base font-semibold text-amber-800">Verify new email</h2>
           <p className="text-sm text-amber-700">
@@ -281,7 +281,7 @@ export default function ProfilePage() {
       {/* ── Change Password ── */}
       <form
         onSubmit={handlePasswordChange}
-        className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5"
+        className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5 lg:col-start-2 lg:row-start-2 lg:row-span-2"
       >
         <h2 className="text-lg font-semibold text-gray-800">Change Password</h2>
 
