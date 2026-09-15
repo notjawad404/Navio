@@ -306,8 +306,8 @@ export default function LandingPage({ onGetStarted, onSignIn }) {
       </section>
 
       {/* ── Destinations ── */}
-      <section className="bg-gray-50 px-4 py-20 sm:px-6 lg:px-8">
-        <div ref={destRef} className="mx-auto max-w-7xl">
+      <section className="bg-gray-50 py-20">
+        <div ref={destRef} className="page-container">
           <div style={slideUp(destVisible)} className="mb-10 text-center">
             <h2 className="mb-3 text-3xl font-bold text-gray-900 sm:text-4xl">
               Explore the world with Navio
@@ -345,28 +345,30 @@ export default function LandingPage({ onGetStarted, onSignIn }) {
       <section
         ref={ctaRef}
         style={slideUp(ctaVisible)}
-        className="bg-linear-to-br from-indigo-600 via-indigo-700 to-violet-700 px-4 py-20 sm:px-6 lg:px-8"
+        className="bg-linear-to-br from-indigo-600 via-indigo-700 to-violet-700 py-20"
       >
-        <div className="mx-auto max-w-3xl text-center text-white">
-          <h2 className="mb-4 text-3xl font-bold sm:text-4xl">Ready to explore the world?</h2>
-          <p className="mb-8 text-lg text-indigo-100">
-            Join travelers who plan smarter, stress-free trips with Navio.
-          </p>
-          <button
-            onClick={onGetStarted}
-            className="inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 text-base font-semibold text-indigo-700 shadow-xl transition-all hover:-translate-y-0.5 hover:bg-indigo-50"
-          >
-            Get started for free
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-            </svg>
-          </button>
+        <div className="page-container">
+          <div className="mx-auto max-w-3xl text-center text-white">
+            <h2 className="mb-4 text-3xl font-bold sm:text-4xl">Ready to explore the world?</h2>
+            <p className="mb-8 text-lg text-indigo-100">
+              Join travelers who plan smarter, stress-free trips with Navio.
+            </p>
+            <button
+              onClick={onGetStarted}
+              className="inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 text-base font-semibold text-indigo-700 shadow-xl transition-all hover:-translate-y-0.5 hover:bg-indigo-50"
+            >
+              Get started for free
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+              </svg>
+            </button>
+          </div>
         </div>
       </section>
 
       {/* ── Footer ── */}
-      <footer className="border-t border-gray-100 bg-white px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl flex flex-col items-center justify-between gap-4 sm:flex-row">
+      <footer className="border-t border-gray-100 bg-white py-8">
+        <div className="page-container flex flex-col items-center justify-between gap-4 sm:flex-row">
           <div className="flex items-center gap-2">
             <span className="text-xl font-bold text-indigo-600">Navio</span>
             <span className="text-indigo-400 leading-none">✦</span>
