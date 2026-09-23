@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import Logo from '../components/Logo'
 
 // ── Animation helpers ────────────────────────────────────────────────────────
 
@@ -86,10 +87,7 @@ export default function LandingPage({ onGetStarted, onSignIn }) {
       >
         <div className="page-container">
           <div className="flex h-16 items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl font-bold text-indigo-600 tracking-tight">Navio</span>
-              <span className="text-indigo-400 text-xl leading-none">✦</span>
-            </div>
+            <Logo />
             <div className="flex items-center gap-3">
               <button onClick={onSignIn} className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors px-3 py-2">
                 Sign In
@@ -369,10 +367,7 @@ export default function LandingPage({ onGetStarted, onSignIn }) {
       {/* ── Footer ── */}
       <footer className="border-t border-gray-100 bg-white py-8">
         <div className="page-container flex flex-col items-center justify-between gap-4 sm:flex-row">
-          <div className="flex items-center gap-2">
-            <span className="text-xl font-bold text-indigo-600">Navio</span>
-            <span className="text-indigo-400 leading-none">✦</span>
-          </div>
+          <Logo size={26} textClassName="text-lg" />
           <p className="text-sm text-gray-400">© 2025 Navio. Your AI-powered travel companion.</p>
         </div>
       </footer>

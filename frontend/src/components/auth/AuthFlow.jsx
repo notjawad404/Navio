@@ -5,6 +5,7 @@ import SignIn from './SignIn'
 import ForgotPassword from './ForgotPassword'
 import ResetCode from './ResetCode'
 import NewPassword from './NewPassword'
+import Logo, { LogoMark } from '../Logo'
 
 const DESTINATIONS = [
   { emoji: '🗼', name: 'Paris',      tilt: '-rotate-2' },
@@ -28,8 +29,8 @@ function BrandingPanel() {
 
       <div className="relative z-10 flex flex-col items-center text-center max-w-xs w-full">
         {/* Logo */}
-        <div className="mb-1 text-4xl font-bold tracking-tight">Navio</div>
-        <div className="mb-8 text-2xl text-indigo-300">✦</div>
+        <LogoMark size={52} inverted className="mb-4" />
+        <div className="mb-8 font-display text-4xl font-bold tracking-tight">Navio</div>
 
         {/* Tagline */}
         <h2 className="mb-3 text-2xl font-bold leading-snug">
@@ -70,10 +71,7 @@ export default function AuthFlow({ onAuthenticated, initialScreen = 'signin', on
 
           {/* Logo + back */}
           <div className="mb-7 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl font-bold text-indigo-600 tracking-tight">Navio</span>
-              <span className="text-indigo-400 text-xl leading-none">✦</span>
-            </div>
+            <Logo />
             {onBack && (
               <button
                 onClick={onBack}

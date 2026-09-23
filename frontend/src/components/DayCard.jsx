@@ -16,21 +16,25 @@ function TravelLeg({ travel }) {
   if (!travel?.minutes) return null
   const icon = MODE_ICON[travel.mode] || '➡️'
   return (
-    <div className="flex items-center gap-2 pl-1 py-1.5 text-[11px] text-gray-400">
-      <span className="w-px h-4 bg-gray-200 ml-[3px]" />
-      <span>{icon}</span>
-      <span>{travel.mode} · {travel.minutes} min</span>
+    <div className="flex items-center gap-3 py-1.5 text-[11px] text-gray-400">
+      <span className="flex w-5 shrink-0 justify-center">
+        <span className="w-px h-4 bg-gray-200" />
+      </span>
+      <span>{icon} {travel.mode} · {travel.minutes} min</span>
     </div>
   )
 }
 
-function PlaceRow({ data, isLast }) {
+function PlaceRow({ data, color, isLast }) {
   return (
     <div>
-      <div className="flex gap-2.5">
-        <div className="flex flex-col items-center pt-1.5">
-          <span className="w-[7px] h-[7px] rounded-full bg-gray-400 shrink-0" />
-        </div>
+      <div className="flex gap-3">
+        <span
+          className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+          style={{ backgroundColor: data.pin ? color : undefined }}
+        >
+          {data.pin ?? <span className="w-[7px] h-[7px] rounded-full bg-gray-400" />}
+        </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2 flex-wrap">
             {data.startTime && (
@@ -54,12 +58,12 @@ function PlaceRow({ data, isLast }) {
   )
 }
 
-function SlotCard({ slot }) {
+function SlotSection({ slot }) {
   const meta = getSlotMeta(slot.slot)
   const span = formatSpan(slot.startTime, slot.endTime)
 
   return (
-    <div className={`rounded-xl border ${meta.border} ${meta.bg} p-4`}>
+    <section className="py-4 first:pt-0 last:pb-0">
       <div className="flex items-center gap-2 mb-1">
         <span>{meta.icon}</span>
         <span className={`text-xs font-bold uppercase tracking-wider ${meta.text}`}>
@@ -75,41 +79,65 @@ function SlotCard({ slot }) {
           <PlaceRow
             key={`${place.place}-${i}`}
             data={place}
+            color={meta.hex}
             isLast={i === slot.places.length - 1}
           />
         ))}
       </div>
-    </div>
+    </section>
   )
 }
 
-export default function DayCard({ day }) {
-  const normalized = normalizeDay(day)
+// Numbered in the same order as the day's map pins
+function withPins(slots) {
+  let pin = 0
+  return slots.map(slot => ({
+    ...slot,
+    places: slot.places.map(p => ({ ...p, pin: p.lat != null && p.lng != null ? ++pin : null })),
+  }))
+}
+
+export default function DayCard({ day, active }) {
+  const slots = withPins(normalizeDay(day).slots)
+  const stops = slots.reduce((n, s) => n + s.places.length, 0)
+  const span  = formatSpan(slots[0]?.startTime, slots[slots.length - 1]?.endTime)
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="flex items-center gap-3 px-5 py-4 bg-linear-to-r from-indigo-50 to-white border-b border-gray-100">
-        <div className="w-9 h-9 rounded-full bg-indigo-600 text-white flex items-center justify-center text-sm font-bold shrink-0">
+    <article
+      className={`bg-white rounded-2xl border overflow-hidden transition ${
+        active ? 'border-indigo-300 shadow-md ring-4 ring-indigo-100' : 'border-gray-200 shadow-sm'
+      }`}
+    >
+      <header className="flex items-center gap-3 px-5 py-4 bg-linear-to-r from-indigo-50 to-white border-b border-gray-100">
+        <div className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center text-sm font-bold shrink-0">
           {day.day}
         </div>
-        <div>
+        <div className="min-w-0 flex-1">
           <p className="text-xs text-indigo-500 font-medium uppercase tracking-wide">Day {day.day}</p>
           <p className="font-semibold text-gray-800">{day.theme}</p>
         </div>
-      </div>
+        {stops > 0 && (
+          <div className="shrink-0 text-right text-xs text-gray-500">
+            <p className="font-medium text-gray-700">{stops} {stops === 1 ? 'stop' : 'stops'}</p>
+            {span && <p className="tabular-nums">{span}</p>}
+          </div>
+        )}
+      </header>
 
-      <div className="p-4 flex flex-col gap-3">
-        {normalized.slots.map((slot, i) => (
-          <SlotCard key={`${slot.slot}-${i}`} slot={slot} />
-        ))}
+      <div className="p-5">
+        <div className="divide-y divide-gray-100">
+          {slots.map((slot, i) => (
+            <SlotSection key={`${slot.slot}-${i}`} slot={slot} />
+          ))}
+        </div>
 
         {day.tips && (
-          <div className="flex items-start gap-2 px-3 py-2.5 bg-gray-50 rounded-lg border border-gray-200 mt-1">
+          <div className="flex items-start gap-2 px-3 py-2.5 bg-gray-50 rounded-lg border border-gray-200 mt-4">
             <span className="text-base">💡</span>
             <p className="text-xs text-gray-600 leading-relaxed">{day.tips}</p>
           </div>
         )}
       </div>
-    </div>
+    </article>
   )
 }

@@ -51,7 +51,7 @@ function TripCard({ trip, onDelete }) {
               </svg>
             </div>
             <p className="font-semibold text-gray-900 text-base">Delete this trip?</p>
-            <p className="text-sm text-gray-400 leading-snug max-w-[220px]">
+            <p className="text-sm text-gray-400 leading-snug max-w-55">
               <span className="text-gray-600 font-medium">"{trip.name}"</span> will be permanently removed.
             </p>
           </div>

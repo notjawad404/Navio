@@ -2,7 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { tripsService, waitForAiPlan } from '../lib/trips'
 import { fetchDestinationInfo } from '../lib/destinationInfo'
+import { countStops } from '../lib/itinerary'
 import DestinationInfo from '../components/DestinationInfo'
+import TripHero from '../components/TripHero'
 import TripItinerary from '../components/TripItinerary'
 
 const INTERESTS = [
@@ -96,30 +98,28 @@ function LoadingView({ destination, destinationInfo }) {
 }
 
 function ResultView({ plan, tripMeta, onReset, tripId }) {
+  const stops = countStops(plan.days)
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
+      <TripHero
+        eyebrow="Your AI-generated itinerary"
+        title={tripMeta.name.trim() || `${tripMeta.destination} Trip`}
+        summary={plan.summary}
+        stats={[
+          { value: tripMeta.days, label: tripMeta.days === 1 ? 'Day' : 'Days' },
+          { value: stops, label: stops === 1 ? 'Stop' : 'Stops' },
+          { value: tripMeta.budget, label: `Budget · ${tripMeta.travelStyle}` },
+        ]}
+      />
 
-      {/* Trip header */}
-      <div className="bg-linear-to-br from-indigo-600 to-indigo-700 rounded-2xl p-6 text-white">
-        <p className="text-indigo-200 text-sm mb-1">Your AI-generated itinerary</p>
-        <h1 className="text-2xl font-bold mb-4">{tripMeta.destination}</h1>
-        {plan.summary && (
-          <p className="max-w-3xl text-indigo-100 leading-relaxed mb-4">{plan.summary}</p>
-        )}
-        <div className="flex flex-wrap gap-3">
-          {[
-            { icon: '📅', label: `${tripMeta.days} days` },
-            { icon: '💰', label: tripMeta.budget },
-            { icon: '🎯', label: tripMeta.travelStyle },
-          ].map(chip => (
-            <span key={chip.label} className="flex items-center gap-1.5 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-sm">
-              {chip.icon} {chip.label}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      <TripItinerary plan={plan} />
+      <TripItinerary
+        key={tripId}
+        plan={plan}
+        tripId={tripId}
+        interests={tripMeta.interests}
+        notes={tripMeta.notes}
+      />
 
       {/* Actions */}
       <div className="flex gap-3 pb-4 sm:justify-end">

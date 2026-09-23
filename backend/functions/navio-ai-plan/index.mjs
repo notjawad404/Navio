@@ -102,6 +102,7 @@ const PLAN_SCHEMA = {
         properties: {
           day:   { type: "integer" },
           theme: { type: "string" },
+          area:  { type: "string", description: "Neighbourhood or district the day is based in" },
           slots: {
             type: "array",
             description: "5 to 7 chronological time blocks covering the whole day",
@@ -118,8 +119,8 @@ const PLAN_SCHEMA = {
           },
           tips: { type: "string" },
         },
-        required: ["day", "theme", "slots", "tips"],
-        propertyOrdering: ["day", "theme", "slots", "tips"],
+        required: ["day", "theme", "area", "slots", "tips"],
+        propertyOrdering: ["day", "theme", "area", "slots", "tips"],
       },
     },
     generalTips:   { type: "array", description: "4 to 6 practical tips", items: { type: "string" } },
@@ -204,7 +205,7 @@ ${trip.notes ? `   - The special notes are hard constraints — every stop must 
    - "duration" must match the gap between that place's own startTime and endTime.
 
 7. A day a real person can survive
-   - Anchor each day on one neighbourhood or district. Do not zig-zag back and forth across the city.
+   - Anchor each day on one neighbourhood or district and name it in "area". Do not zig-zag back and forth across the city.
    - Include breakfast, lunch and dinner as real stops at named venues, not vague suggestions.
    - Leave a café, rest or downtime stop on heavy sightseeing days.
    - Cap it at 5-7 substantial sights per day; the rest should be meals, breaks and short stops.
@@ -223,6 +224,7 @@ Return ONLY a valid JSON object — no markdown, no code block, no commentary �
     {
       "day": 1,
       "theme": "Short catchy theme for this day",
+      "area": "Neighbourhood or district the day is based in",
       "slots": [
         {
           "slot": "morning",

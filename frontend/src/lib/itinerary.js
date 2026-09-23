@@ -49,25 +49,18 @@ export function normalizeDay(day) {
   }
 }
 
-/** Flat, chronological map waypoints for one day. */
-export function dayWaypoints(day) {
-  const pts = []
-  normalizeDay(day).slots.forEach(slot => {
-    slot.places.forEach(p => {
-      if (p?.lat != null && p?.lng != null) {
-        pts.push({
-          day:       day.day,
-          slot:      slot.slot,
-          place:     p.place,
-          activity:  p.activity,
-          startTime: p.startTime,
-          lat:       p.lat,
-          lng:       p.lng,
-        })
-      }
-    })
-  })
-  return pts
+/** Total stops across a plan's days, in either plan shape. */
+export function countStops(days) {
+  return (days || []).reduce(
+    (total, day) => total + normalizeDay(day).slots.reduce((n, slot) => n + slot.places.length, 0),
+    0,
+  )
+}
+
+/** "09:30" -> 570; null when the time is missing or malformed. */
+export function toMinutes(time) {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(time ?? '')
+  return match ? Number(match[1]) * 60 + Number(match[2]) : null
 }
 
 /** "09:00" + "10:30" -> "09:00 – 10:30"; falls back gracefully when times are absent. */

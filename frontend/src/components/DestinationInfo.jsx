@@ -19,7 +19,7 @@ function FactGrid({ facts }) {
           <span className="text-lg leading-none mt-0.5">{fact.icon}</span>
           <div className="min-w-0">
             <dt className="text-xs text-gray-400">{fact.label}</dt>
-            <dd className="text-sm font-medium text-gray-800 break-words">{fact.value}</dd>
+            <dd className="text-sm font-medium text-gray-800 wrap-break-word">{fact.value}</dd>
           </div>
         </div>
       ))}
