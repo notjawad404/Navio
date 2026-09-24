@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { tripsService, waitForAiPlan } from '../lib/trips'
-import { fetchDestinationInfo } from '../lib/destinationInfo'
+import { fetchDestinationInfo, correctDestination } from '../lib/destinationInfo'
 import { countStops } from '../lib/itinerary'
-import DestinationInfo from '../components/DestinationInfo'
+import GeneratingView from '../components/GeneratingView'
 import TripHero from '../components/TripHero'
 import TripItinerary from '../components/TripItinerary'
 
@@ -29,70 +29,7 @@ const STYLES = [
   { value: 'Family',     hint: 'Kid-friendly stops and shorter walks.' },
 ]
 
-const LOADING_MESSAGES = [
-  dest => `Exploring ${dest}…`,
-  ()   => 'Finding hidden gems…',
-  ()   => 'Building your itinerary…',
-  ()   => 'Checking local tips…',
-  ()   => 'Almost ready…',
-]
-
 const FIELD = 'rounded-xl border border-gray-200 bg-white text-[15px] text-gray-900 outline-none transition-colors focus:border-indigo-600 focus:ring-3 focus:ring-indigo-50'
-
-function LoadingDots() {
-  return (
-    <div className="flex gap-1.5">
-      {[0, 1, 2].map(i => (
-        <div
-          key={i}
-          className="w-2 h-2 rounded-full bg-indigo-400 animate-bounce"
-          style={{ animationDelay: `${i * 0.15}s` }}
-        />
-      ))}
-    </div>
-  )
-}
-
-function LoadingView({ destination, destinationInfo }) {
-  const [idx, setIdx] = useState(0)
-  useEffect(() => {
-    const t = setInterval(() => setIdx(i => (i + 1) % LOADING_MESSAGES.length), 2000)
-    return () => clearInterval(t)
-  }, [])
-
-  const message = LOADING_MESSAGES[idx](destination)
-
-  // Nothing found about the destination, so keep the plain full-screen loader
-  if (destinationInfo === null) return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 text-center">
-      <div className="text-6xl animate-bounce">🌍</div>
-      <div>
-        <h2 className="text-xl font-semibold text-gray-800 mb-1">Planning your trip</h2>
-        <p className="text-gray-400 text-sm h-5">{message}</p>
-      </div>
-      <LoadingDots />
-    </div>
-  )
-
-  return (
-    <div className="flex flex-col gap-4 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start">
-      <div className="sticky top-20 z-10 lg:top-24 lg:order-last bg-white rounded-2xl border border-gray-200 shadow-sm p-5 flex items-center gap-4">
-        <div className="text-4xl animate-bounce">🌍</div>
-        <div className="flex-1 min-w-0">
-          <h2 className="font-semibold text-gray-800">Planning your trip</h2>
-          <p className="text-gray-400 text-sm h-5 truncate">{message}</p>
-        </div>
-        <LoadingDots />
-      </div>
-      <div className="flex flex-col gap-4 lg:col-span-2">
-        <p className="text-sm text-gray-500 text-center lg:text-left">
-          A detailed itinerary can take a minute — here&rsquo;s a little about where you&rsquo;re headed.
-        </p>
-        <DestinationInfo info={destinationInfo} />
-      </div>
-    </div>
-  )
-}
 
 function ResultView({ plan, tripMeta, onReset, tripId }) {
   const stops = countStops(plan.days)
@@ -108,6 +45,7 @@ function ResultView({ plan, tripMeta, onReset, tripId }) {
           { value: stops, label: stops === 1 ? 'Stop' : 'Stops' },
           { value: tripMeta.budget, label: `Budget · ${tripMeta.travelStyle}` },
         ]}
+        credit="Itinerary generated with Google Gemini."
       />
 
       <TripItinerary
@@ -181,6 +119,7 @@ export default function PlanPage() {
   const [tripId, setTripId] = useState(null)
   const [error, setError]   = useState('')
   const [tried, setTried]   = useState(false)
+  const [spelling, setSpelling] = useState({ suggestion: '', keepTyped: false, correctedFrom: '' })
   const [form, setForm]     = useState({
     destination: '',
     name: '',
@@ -192,8 +131,24 @@ export default function PlanPage() {
   })
 
   const destinationRef = useRef(null)
+  const checked        = useRef('')
 
   const set = (field, value) => setForm(f => ({ ...f, [field]: value }))
+
+  const setDestination = value => {
+    set('destination', value)
+    setSpelling({ suggestion: '', keepTyped: false, correctedFrom: '' })
+  }
+
+  // One lookup when the field is left, so a typo is caught before anything is created
+  const checkSpelling = async () => {
+    const typed = form.destination.trim()
+    if (!typed || typed === checked.current) return
+    checked.current = typed
+
+    const name = await correctDestination(typed)
+    if (name !== typed) setSpelling(s => ({ ...s, suggestion: name }))
+  }
 
   const toggleInterest = (label) =>
     set('interests', form.interests.includes(label)
@@ -224,14 +179,24 @@ export default function PlanPage() {
     pending.current = request
 
     setDestinationInfo(undefined)
-    fetchDestinationInfo(form.destination, request.signal).then(info => {
-      if (!request.signal.aborted) setDestinationInfo(info)
-    })
 
     try {
+      const typed = form.destination.trim()
+      const destination = spelling.keepTyped ? typed : await correctDestination(typed, request.signal)
+
+      if (destination !== typed) {
+        set('destination', destination)
+        setSpelling({ suggestion: '', keepTyped: false, correctedFrom: typed })
+      }
+
+      fetchDestinationInfo(destination, request.signal).then(info => {
+        if (!request.signal.aborted) setDestinationInfo(info)
+      })
+
       const trip = await tripsService.create({
         ...form,
-        name: form.name.trim() || `${form.destination} Trip`,
+        destination,
+        name: form.name.trim() || `${destination} Trip`,
         status: 'planning',
       })
       setTripId(trip.tripId)
@@ -252,10 +217,21 @@ export default function PlanPage() {
     setTripId(null)
     setError('')
     setTried(false)
+    setSpelling({ suggestion: '', keepTyped: false, correctedFrom: '' })
+    checked.current = ''
     setForm({ destination: '', name: '', days: 3, budget: 'Moderate', travelStyle: 'Cultural', interests: [], notes: '' })
   }
 
-  if (stage === 'loading') return <LoadingView destination={form.destination} destinationInfo={destinationInfo} />
+  if (stage === 'loading') return (
+    <GeneratingView
+      destination={form.destination}
+      days={form.days}
+      budget={form.budget}
+      travelStyle={form.travelStyle}
+      info={destinationInfo}
+      correctedFrom={spelling.correctedFrom}
+    />
+  )
 
   if (stage === 'result') return (
     <ResultView plan={plan} tripMeta={form} onReset={reset} tripId={tripId} />
@@ -291,7 +267,8 @@ export default function PlanPage() {
                   ref={destinationRef}
                   type="text"
                   value={form.destination}
-                  onChange={e => set('destination', e.target.value)}
+                  onChange={e => setDestination(e.target.value)}
+                  onBlur={checkSpelling}
                   placeholder="e.g. Tokyo, Japan"
                   aria-invalid={destError}
                   className={`h-11.5 px-3.5 ${FIELD} ${destError ? 'border-red-300 ring-3 ring-red-50' : ''}`}
@@ -312,6 +289,25 @@ export default function PlanPage() {
             </div>
             {destError && (
               <p className="mt-2 text-[12.5px] text-red-600">Add a destination to generate your itinerary.</p>
+            )}
+            {spelling.suggestion && (
+              <p className="mt-2 flex flex-wrap items-center gap-2 text-[12.5px] text-gray-600">
+                <span>Did you mean <span className="font-semibold text-gray-900">{spelling.suggestion}</span>?</span>
+                <button
+                  type="button"
+                  onClick={() => setDestination(spelling.suggestion)}
+                  className="cursor-pointer rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-0.5 font-medium text-indigo-700 transition-colors hover:bg-indigo-100"
+                >
+                  Use it
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSpelling({ suggestion: '', keepTyped: true, correctedFrom: '' })}
+                  className="cursor-pointer text-gray-400 transition-colors hover:text-gray-600"
+                >
+                  Keep mine
+                </button>
+              </p>
             )}
           </Section>
 

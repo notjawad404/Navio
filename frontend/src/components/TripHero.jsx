@@ -3,7 +3,7 @@ import { useState } from 'react'
 // Longer summaries start clamped to two lines
 const CLAMP_AT = 160
 
-export default function TripHero({ eyebrow, title, summary, stats = [] }) {
+export default function TripHero({ eyebrow, title, summary, stats = [], credit }) {
   const [expanded, setExpanded] = useState(false)
   const long = summary?.length > CLAMP_AT
 
@@ -32,6 +32,7 @@ export default function TripHero({ eyebrow, title, summary, stats = [] }) {
             )}
           </>
         )}
+        {credit && <p className="mt-3 text-[12.5px] text-gray-400">{credit}</p>}
       </div>
 
       {stats.length > 0 && (
