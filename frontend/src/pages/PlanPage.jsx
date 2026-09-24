@@ -7,31 +7,26 @@ import DestinationInfo from '../components/DestinationInfo'
 import TripHero from '../components/TripHero'
 import TripItinerary from '../components/TripItinerary'
 
+const MAX_DAYS  = 14
+const MAX_NOTES = 400
+
 const INTERESTS = [
-  { label: 'Food & Dining', emoji: '🍜' },
-  { label: 'History',       emoji: '🏛️' },
-  { label: 'Nature',        emoji: '🌿' },
-  { label: 'Shopping',      emoji: '🛍️' },
-  { label: 'Nightlife',     emoji: '🌙' },
-  { label: 'Museums',       emoji: '🎨' },
-  { label: 'Beaches',       emoji: '🏖️' },
-  { label: 'Architecture',  emoji: '🏰' },
-  { label: 'Adventure',     emoji: '🧗' },
-  { label: 'Wellness',      emoji: '🧘' },
+  'Food & Dining', 'History', 'Nature', 'Shopping', 'Nightlife',
+  'Museums', 'Beaches', 'Architecture', 'Adventure', 'Wellness',
 ]
 
 const BUDGETS = [
-  { value: 'Budget',   emoji: '🎒', desc: 'Hostels & street food' },
-  { value: 'Moderate', emoji: '✈️', desc: 'Mid-range comfort' },
-  { value: 'Luxury',   emoji: '💎', desc: 'Premium experience' },
+  { value: 'Budget',   sign: '$',   desc: 'Hostels & street food' },
+  { value: 'Moderate', sign: '$$',  desc: 'Mid-range comfort' },
+  { value: 'Luxury',   sign: '$$$', desc: 'Premium experience' },
 ]
 
 const STYLES = [
-  { value: 'Cultural',    emoji: '🎭' },
-  { value: 'Adventure',   emoji: '🧗' },
-  { value: 'Relaxation',  emoji: '🧘' },
-  { value: 'Romantic',    emoji: '❤️' },
-  { value: 'Family',      emoji: '👨‍👩‍👧' },
+  { value: 'Cultural',   hint: 'Museums, landmarks and local traditions.' },
+  { value: 'Adventure',  hint: 'Active days, hikes and outdoor experiences.' },
+  { value: 'Relaxation', hint: 'Slower mornings and fewer stops per day.' },
+  { value: 'Romantic',   hint: 'Scenic spots and dinners for two.' },
+  { value: 'Family',     hint: 'Kid-friendly stops and shorter walks.' },
 ]
 
 const LOADING_MESSAGES = [
@@ -41,6 +36,8 @@ const LOADING_MESSAGES = [
   ()   => 'Checking local tips…',
   ()   => 'Almost ready…',
 ]
+
+const FIELD = 'rounded-xl border border-gray-200 bg-white text-[15px] text-gray-900 outline-none transition-colors focus:border-indigo-600 focus:ring-3 focus:ring-indigo-50'
 
 function LoadingDots() {
   return (
@@ -89,7 +86,7 @@ function LoadingView({ destination, destinationInfo }) {
       </div>
       <div className="flex flex-col gap-4 lg:col-span-2">
         <p className="text-sm text-gray-500 text-center lg:text-left">
-          A detailed itinerary can take a minute — here's a little about where you're headed.
+          A detailed itinerary can take a minute — here&rsquo;s a little about where you&rsquo;re headed.
         </p>
         <DestinationInfo info={destinationInfo} />
       </div>
@@ -140,12 +137,41 @@ function ResultView({ plan, tripMeta, onReset, tripId }) {
   )
 }
 
+function Section({ step, done, title, aside, first, children }) {
+  return (
+    <section className={`grid grid-cols-[28px_minmax(0,1fr)] gap-x-3.5 px-6 py-5.5 ${first ? '' : 'border-t border-gray-100'}`}>
+      <span
+        className={`flex size-7 items-center justify-center rounded-[9px] text-[13px] font-semibold transition-colors ${
+          done ? 'bg-indigo-600 text-white' : 'border border-gray-200 bg-gray-100 text-gray-500'
+        }`}
+      >
+        {step}
+      </span>
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <h2 className="font-display text-[19px] font-semibold tracking-tight text-gray-900">{title}</h2>
+          {aside}
+        </div>
+        {children}
+      </div>
+    </section>
+  )
+}
+
 function SummaryRow({ label, value }) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <dt className="text-gray-500">{label}</dt>
-      <dd className="font-medium text-gray-800 text-right">{value}</dd>
+    <div className="flex items-baseline justify-between gap-3 border-b border-gray-50 py-2.5">
+      <dt className="text-[13.5px] text-gray-500">{label}</dt>
+      <dd className="text-right text-sm font-semibold text-gray-900">{value}</dd>
     </div>
+  )
+}
+
+function TickIcon() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path d="M2.5 7.4 5.4 10.3 11.5 4.2" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   )
 }
 
@@ -154,6 +180,7 @@ export default function PlanPage() {
   const [plan, setPlan]     = useState(null)
   const [tripId, setTripId] = useState(null)
   const [error, setError]   = useState('')
+  const [tried, setTried]   = useState(false)
   const [form, setForm]     = useState({
     destination: '',
     name: '',
@@ -164,6 +191,8 @@ export default function PlanPage() {
     notes: '',
   })
 
+  const destinationRef = useRef(null)
+
   const set = (field, value) => setForm(f => ({ ...f, [field]: value }))
 
   const toggleInterest = (label) =>
@@ -172,12 +201,21 @@ export default function PlanPage() {
       : [...form.interests, label]
     )
 
+  const stepDays = delta => set('days', Math.min(Math.max(form.days + delta, 1), MAX_DAYS))
+
   const [destinationInfo, setDestinationInfo] = useState(undefined)
   const pending = useRef(null)
   useEffect(() => () => pending.current?.abort(), [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    if (!form.destination.trim()) {
+      setTried(true)
+      destinationRef.current?.focus()
+      return
+    }
+
     setError('')
     setStage('loading')
 
@@ -213,6 +251,7 @@ export default function PlanPage() {
     setPlan(null)
     setTripId(null)
     setError('')
+    setTried(false)
     setForm({ destination: '', name: '', days: 3, budget: 'Moderate', travelStyle: 'Cultural', interests: [], notes: '' })
   }
 
@@ -222,182 +261,280 @@ export default function PlanPage() {
     <ResultView plan={plan} tripMeta={form} onReset={reset} tripId={tripId} />
   )
 
-  const selectedBudget = BUDGETS.find(b => b.value === form.budget)
-  const selectedStyle  = STYLES.find(s => s.value === form.travelStyle)
+  const destination  = form.destination.trim()
+  const destError    = tried && !destination
+  const selectedCost = BUDGETS.find(b => b.value === form.budget)
+  const styleHint    = STYLES.find(s => s.value === form.travelStyle).hint
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Plan a Trip</h1>
-        <p className="text-gray-500 text-sm mt-1">Tell us about your trip and AI will create a day-by-day itinerary.</p>
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">New itinerary</p>
+        <h1 className="mt-1.5 font-display text-3xl font-semibold leading-[1.05] tracking-tight text-gray-900 sm:text-[38px]">
+          Plan a Trip
+        </h1>
+        <p className="mt-2 text-[14.5px] text-gray-600">
+          Tell us about your trip and AI will create a day-by-day itinerary.
+        </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-6 lg:grid lg:grid-cols-3 lg:items-start">
-        <div className="flex flex-col gap-6 lg:col-span-2">
+      <form onSubmit={handleSubmit} className="mt-6 grid items-start gap-4.5 lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
+        <div className="overflow-hidden rounded-[18px] border border-gray-200 bg-white">
 
-          {/* Destination + Name */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 flex flex-col gap-4">
-            <h2 className="font-semibold text-gray-800">Where are you going?</h2>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <input
-                type="text"
-                placeholder="Destination  (e.g. Tokyo, Japan)"
-                value={form.destination}
-                onChange={e => set('destination', e.target.value)}
-                required
-                className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
-              />
-              <input
-                type="text"
-                placeholder="Trip name (optional)"
-                value={form.name}
-                onChange={e => set('name', e.target.value)}
-                className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
-              />
+          <Section first step={1} done={Boolean(destination)} title="Where are you going?">
+            <div className="mt-3.5 grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3">
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[12.5px] font-semibold text-gray-600">
+                  Destination <span className="text-red-600">*</span>
+                </span>
+                <input
+                  ref={destinationRef}
+                  type="text"
+                  value={form.destination}
+                  onChange={e => set('destination', e.target.value)}
+                  placeholder="e.g. Tokyo, Japan"
+                  aria-invalid={destError}
+                  className={`h-11.5 px-3.5 ${FIELD} ${destError ? 'border-red-300 ring-3 ring-red-50' : ''}`}
+                />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[12.5px] font-semibold text-gray-600">
+                  Trip name <span className="font-normal text-gray-400">optional</span>
+                </span>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={e => set('name', e.target.value)}
+                  placeholder={destination ? `${destination} Trip` : 'e.g. Spring in Kyoto'}
+                  className={`h-11.5 px-3.5 ${FIELD}`}
+                />
+              </label>
             </div>
-          </div>
+            {destError && (
+              <p className="mt-2 text-[12.5px] text-red-600">Add a destination to generate your itinerary.</p>
+            )}
+          </Section>
 
-          {/* Duration */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-gray-800">How many days?</h2>
-              <span className="text-2xl font-bold text-indigo-600">{form.days}</span>
-            </div>
-            <input
-              type="range"
-              min={1}
-              max={14}
-              value={form.days}
-              onChange={e => set('days', Number(e.target.value))}
-              className="w-full accent-indigo-600"
-            />
-            <div className="flex justify-between text-xs text-gray-400 mt-1">
-              <span>1 day</span>
-              <span>14 days</span>
-            </div>
-          </div>
-
-          {/* Budget */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-            <h2 className="font-semibold text-gray-800 mb-4">Budget</h2>
-            <div className="grid grid-cols-3 gap-3">
-              {BUDGETS.map(b => (
+          <Section
+            step={2}
+            done
+            title="How many days?"
+            aside={
+              <div className="flex items-center gap-1.5">
                 <button
-                  key={b.value}
                   type="button"
-                  onClick={() => set('budget', b.value)}
-                  className={`flex flex-col items-center gap-1 rounded-xl border-2 py-3 px-2 transition-all text-center ${
-                    form.budget === b.value
-                      ? 'border-indigo-500 bg-indigo-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
+                  onClick={() => stepDays(-1)}
+                  aria-label="Fewer days"
+                  className="flex size-8.5 cursor-pointer items-center justify-center rounded-[10px] border border-gray-200 bg-white text-lg text-gray-600 transition-colors hover:border-indigo-200 hover:text-indigo-600"
                 >
-                  <span className="text-2xl">{b.emoji}</span>
-                  <span className="text-sm font-semibold text-gray-800">{b.value}</span>
-                  <span className="text-xs text-gray-400 leading-tight">{b.desc}</span>
+                  −
                 </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Travel style */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-            <h2 className="font-semibold text-gray-800 mb-4">Travel style</h2>
-            <div className="flex flex-wrap gap-2">
-              {STYLES.map(s => (
+                <span className="min-w-21 text-center font-display text-[22px] font-semibold tracking-tight text-indigo-600 tabular-nums">
+                  {form.days} {form.days === 1 ? 'day' : 'days'}
+                </span>
                 <button
-                  key={s.value}
                   type="button"
-                  onClick={() => set('travelStyle', s.value)}
-                  className={`flex items-center gap-2 rounded-full border-2 px-4 py-2 text-sm font-medium transition-all ${
-                    form.travelStyle === s.value
-                      ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                      : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                  }`}
+                  onClick={() => stepDays(1)}
+                  aria-label="More days"
+                  className="flex size-8.5 cursor-pointer items-center justify-center rounded-[10px] border border-gray-200 bg-white text-lg text-gray-600 transition-colors hover:border-indigo-200 hover:text-indigo-600"
                 >
-                  <span>{s.emoji}</span>
-                  {s.value}
+                  +
                 </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Interests */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-            <h2 className="font-semibold text-gray-800 mb-1">Interests</h2>
-            <p className="text-xs text-gray-400 mb-4">Select all that apply</p>
-            <div className="flex flex-wrap gap-2">
-              {INTERESTS.map(item => {
-                const active = form.interests.includes(item.label)
+              </div>
+            }
+          >
+            <div className="mt-3.5 grid grid-cols-7 gap-1 sm:grid-cols-[repeat(14,minmax(0,1fr))]">
+              {Array.from({ length: MAX_DAYS }, (_, i) => i + 1).map(day => {
+                const current = day === form.days
+                const inRange = day <= form.days
                 return (
                   <button
-                    key={item.label}
+                    key={day}
                     type="button"
-                    onClick={() => toggleInterest(item.label)}
-                    className={`flex items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm transition-all ${
-                      active
-                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700 font-medium'
-                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    onClick={() => set('days', day)}
+                    aria-pressed={current}
+                    title={`${day} ${day === 1 ? 'day' : 'days'}`}
+                    className={`h-9 cursor-pointer rounded-lg border text-[12.5px] font-semibold tabular-nums transition-colors ${
+                      current
+                        ? 'border-indigo-600 bg-indigo-600 text-white'
+                        : inRange
+                          ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
+                          : 'border-gray-200 bg-gray-50 text-gray-400 hover:border-gray-300'
                     }`}
                   >
-                    <span>{item.emoji}</span>
-                    {item.label}
+                    {day}
                   </button>
                 )
               })}
             </div>
-          </div>
+            <div className="mt-1.5 hidden justify-between text-xs text-gray-400 sm:flex">
+              <span>Weekend</span>
+              <span>One week</span>
+              <span>Two weeks</span>
+            </div>
+          </Section>
 
-          {/* Notes */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-            <h2 className="font-semibold text-gray-800 mb-3">Anything else? <span className="text-gray-400 font-normal text-sm">(optional)</span></h2>
+          <Section step={3} done title="Budget">
+            <div className="mt-3.5 grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-2.5">
+              {BUDGETS.map(budget => {
+                const active = form.budget === budget.value
+                return (
+                  <button
+                    key={budget.value}
+                    type="button"
+                    onClick={() => set('budget', budget.value)}
+                    aria-pressed={active}
+                    className={`cursor-pointer rounded-[14px] border-[1.5px] p-4 text-left transition-colors ${
+                      active ? 'border-indigo-600 bg-indigo-50/50' : 'border-gray-200 bg-white hover:border-gray-300'
+                    }`}
+                  >
+                    <span className="flex items-center justify-between">
+                      <span className={`font-display text-[17px] font-semibold ${active ? 'text-indigo-600' : 'text-gray-400'}`}>
+                        {budget.sign}
+                      </span>
+                      <span className={`size-4.5 rounded-full bg-white transition-colors ${
+                        active ? 'border-5 border-indigo-600' : 'border-[1.5px] border-gray-300'
+                      }`} />
+                    </span>
+                    <span className="mt-3 block text-[15px] font-semibold text-gray-900">{budget.value}</span>
+                    <span className="mt-0.5 block text-[12.5px] text-gray-500">{budget.desc}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </Section>
+
+          <Section step={4} done title="Travel style">
+            <div className="mt-3.5 flex flex-wrap gap-2">
+              {STYLES.map(style => {
+                const active = form.travelStyle === style.value
+                return (
+                  <button
+                    key={style.value}
+                    type="button"
+                    onClick={() => set('travelStyle', style.value)}
+                    aria-pressed={active}
+                    className={`cursor-pointer rounded-full border px-4 py-2.25 text-sm font-medium transition-colors ${
+                      active
+                        ? 'border-indigo-600 bg-indigo-600 text-white'
+                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    {style.value}
+                  </button>
+                )
+              })}
+            </div>
+            <p className="mt-2.5 text-[13px] text-gray-500">{styleHint}</p>
+          </Section>
+
+          <Section
+            step={5}
+            done={form.interests.length > 0}
+            title="Interests"
+            aside={
+              <span className="text-[12.5px] text-gray-500">
+                {form.interests.length > 0 ? `${form.interests.length} selected` : 'Select all that apply'}
+              </span>
+            }
+          >
+            <div className="mt-3.5 flex flex-wrap gap-2">
+              {INTERESTS.map(interest => {
+                const active = form.interests.includes(interest)
+                return (
+                  <button
+                    key={interest}
+                    type="button"
+                    onClick={() => toggleInterest(interest)}
+                    role="checkbox"
+                    aria-checked={active}
+                    className={`inline-flex cursor-pointer items-center gap-2 rounded-full border py-2 pl-2.5 pr-3.5 text-sm font-medium transition-colors ${
+                      active
+                        ? 'border-indigo-200 bg-indigo-50 text-indigo-800'
+                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <span className={`flex size-4 items-center justify-center rounded-[5px] border-[1.5px] transition-colors ${
+                      active ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300 bg-white text-transparent'
+                    }`}>
+                      <TickIcon />
+                    </span>
+                    {interest}
+                  </button>
+                )
+              })}
+            </div>
+          </Section>
+
+          <Section
+            step={6}
+            done={form.notes.trim().length > 0}
+            title={<>Anything else? <span className="text-[12.5px] font-normal text-gray-400">optional</span></>}
+          >
             <textarea
-              placeholder="e.g. travelling with kids, no spicy food, prefer walking over taxis…"
               value={form.notes}
               onChange={e => set('notes', e.target.value)}
               rows={3}
-              className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 resize-none"
+              maxLength={MAX_NOTES}
+              placeholder="e.g. travelling with kids, no spicy food, prefer walking over taxis…"
+              className={`mt-3.5 w-full resize-y px-3.5 py-3 leading-relaxed ${FIELD}`}
             />
-          </div>
+            <p className="mt-1.5 text-right text-xs text-gray-400 tabular-nums">
+              {form.notes.length} / {MAX_NOTES}
+            </p>
+          </Section>
         </div>
 
-        {/* Summary + submit */}
-        <aside className="flex flex-col gap-4 lg:sticky lg:top-24">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="bg-linear-to-br from-indigo-600 to-indigo-700 px-5 py-4 text-white">
-              <p className="text-indigo-200 text-xs font-medium uppercase tracking-wide mb-1">Trip summary</p>
-              <p className="text-lg font-bold truncate">{form.destination.trim() || 'Where to?'}</p>
-              {form.name.trim() && <p className="text-sm text-indigo-100 truncate">{form.name}</p>}
+        <aside className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-21">
+          <div className="overflow-hidden rounded-[18px] border border-gray-200 bg-white">
+            <div className="border-b border-gray-100 px-5 pb-4 pt-4.5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-400">Trip summary</p>
+              <p className={`mt-1.5 truncate font-display text-2xl font-semibold leading-tight tracking-tight ${
+                destination ? 'text-gray-900' : 'text-gray-300'
+              }`}>
+                {destination || 'Where to?'}
+              </p>
+              {form.name.trim() && <p className="mt-0.5 truncate text-[13px] text-gray-500">{form.name.trim()}</p>}
             </div>
-            <dl className="p-5 flex flex-col gap-3 text-sm">
-              <SummaryRow label="Duration" value={`📅 ${form.days} ${form.days === 1 ? 'day' : 'days'}`} />
-              <SummaryRow label="Budget"   value={`${selectedBudget.emoji} ${selectedBudget.value}`} />
-              <SummaryRow label="Style"    value={`${selectedStyle.emoji} ${selectedStyle.value}`} />
-              <div className="border-t border-gray-100 pt-3">
-                <dt className="text-gray-500 mb-2">Interests</dt>
-                <dd className="flex flex-wrap gap-1.5">
+
+            <dl className="px-5 pb-3.5">
+              <SummaryRow label="Duration" value={`${form.days} ${form.days === 1 ? 'day' : 'days'}`} />
+              <SummaryRow label="Budget" value={`${selectedCost.value} · ${selectedCost.sign}`} />
+              <SummaryRow label="Style" value={form.travelStyle} />
+              <div className="pt-3">
+                <dt className="text-[13.5px] text-gray-500">Interests</dt>
+                <dd className="mt-2 flex flex-wrap gap-1.5">
                   {form.interests.length > 0
-                    ? form.interests.map(i => (
-                        <span key={i} className="text-xs text-indigo-600 bg-indigo-50 rounded-full px-2 py-0.5">{i}</span>
+                    ? form.interests.map(interest => (
+                        <span key={interest} className="rounded-full bg-indigo-50 px-2.5 py-1 text-[12.5px] font-medium text-indigo-700">
+                          {interest}
+                        </span>
                       ))
-                    : <span className="text-gray-400">None selected</span>}
+                    : <span className="text-[13.5px] text-gray-400">None selected</span>}
                 </dd>
               </div>
             </dl>
           </div>
 
           {error && (
-            <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
               {error}
             </div>
           )}
 
           <button
             type="submit"
-            className="w-full rounded-xl bg-indigo-600 py-3.5 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors shadow-sm"
+            className={`flex h-13 w-full items-center justify-center rounded-[14px] border text-[15px] font-semibold transition-colors ${
+              destination
+                ? 'cursor-pointer border-indigo-600 bg-indigo-600 text-white shadow-sm shadow-indigo-600/30 hover:bg-indigo-700'
+                : 'border-gray-200 bg-gray-100 text-gray-400'
+            }`}
           >
-            ✦ Generate My Itinerary
+            Generate my itinerary
           </button>
+          <p className="text-center text-[12.5px] leading-relaxed text-gray-500">
+            {destination ? 'Generating usually takes under a minute.' : 'Add a destination to continue.'}
+          </p>
         </aside>
       </form>
     </div>
